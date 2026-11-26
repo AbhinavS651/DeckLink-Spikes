@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeckLink – Connection Benchmark</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-alt: #0b1220;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --idle: #64748b;
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 16px;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 2px;
+    }
+
+    .status-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .status-label {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--idle);
+      flex-shrink: 0;
+    }
+
+    .dot.ok { background: var(--ok); }
+    .dot.warn { background: var(--warn); }
+    .dot.err { background: var(--err); }
+    .dot.idle { background: var(--idle); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    input, select {
+      background: var(--surface-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+      font-family: var(--sans);
+      width: 100%;
+    }
+
+    input[type="text"], input[type="number"] {
+      font-family: var(--mono);
+    }
+
+    input:focus, select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    input:disabled, select:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #082f49;
+      border-color: var(--accent);
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button.danger {
+      background: #7f1d1d;
+      border-color: #991b1b;
+      color: #fecaca;
+    }
+
+    button.danger:hover:not(:disabled) {
+      background: #991b1b;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .metric-value {
+      font-family: var(--mono);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .diag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      font-size: 0.84rem;
+    }
+
+    .diag-item {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .diag-key {
+      color: var(--muted);
+    }
+
+    .diag-val {
+      font-family: var(--mono);
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>DeckLink – Connection Benchmark</h1>
+        <p class="subtitle">USB vs Wi-Fi WebSocket latency experiment.</p>
+      </div>
+      <div class="status-group">
+        <div class="status-pill" aria-live="polite">
+          <span class="dot idle" id="connDot"></span>
+          <span class="status-label">Connection:</span>
+          <span id="connStatusText">Disconnected</span>
+        </div>
+        <div class="status-pill" aria-live="polite">
+          <span class="dot idle" id="testDot"></span>
+          <span class="status-label">Test:</span>
+          <span id="testStatusText">Idle</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="card-title">Configuration &amp; Controls</div>
+      <div class="controls-grid">
+        <div class="field">
+          <label for="wsUrl">WebSocket URL</label>
+          <input id="wsUrl" type="text" value="ws://localhost:8765" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="transportLabel">Transport Label</label>
+          <select id="transportLabel">
+            <option value="Wi-Fi">Wi-Fi</option>
+            <option value="USB tethering">USB tethering</option>
+            <option value="Local test" selected>Local test</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sendRate">Message Rate (msg/sec)</label>
+          <input id="sendRate" type="number" min="1" max="200" step="1" value="20">
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="connectBtn" type="button">Connect</button>
+        <button id="disconnectBtn" type="button" disabled>Disconnect</button>
+        <button id="startBtn" class="primary" type="button" disabled>Start Test</button>
+        <button id="stopBtn" class="danger" type="button" disabled>Stop Test</button>
+        <button id="exportBtn" type="button" disabled>Export CSV</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Live Metrics</div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Elapsed Duration</div>
+          <div class="metric-value" id="mDuration">0.0 s</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Sent</div>
+          <div class="metric-value" id="mSent">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Received</div>
+          <div class="metric-value" id="mReceived">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Pending</div>
+          <div class="metric-value" id="mPending">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Timed Out (&gt;5s)</div>
+          <div class="metric-value" id="mTimedOut">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Abandoned</div>
+          <div class="metric-value" id="mAbandoned">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Current RTT</div>
+          <div class="metric-value" id="mCurrent">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Median RTT</div>
+          <div class="metric-value" id="mMedian">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">p95 RTT</div>
+          <div class="metric-value" id="mP95">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Min RTT</div>
+          <div class="metric-value" id="mMin">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Max RTT</div>
+          <div class="metric-value" id="mMax">-</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">RTT History (Recent Valid Samples, ms)</div>
+      <div class="chart-wrap">
+        <canvas id="rttChart"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Diagnostics</div>
+      <div class="diag-grid">
+        <div class="diag-item">
+          <span class="diag-key">Page Visibility</span>
+          <span class="diag-val" id="dVisibility">visible</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-key">Reconnect Attempts</span>
+          <span class="diag-val" id="dReconnects">0</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-key">bufferedAmount</span>
+          <span class="diag-val" id="dBuffered">0 B</span>
+        </div>
+        <div class="diag-item">
+          <span class="diag-key">Last Conn/Disconn Reason</span>
+          <span class="diag-val" id="dReason">None</span>
+        </div>
+      </div>
+      <p class="note">
+        Note: Browser tab throttling and timer behavior differ from native Android background execution; this page measures active foreground WebSocket RTT only.
+      </p>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // -----------------------------------------------------------------------
+      // Constants
+      // -----------------------------------------------------------------------
+      const MESSAGE_TIMEOUT_MS = 5000;
+      const MAX_PENDING_MESSAGES = 1000;
+      const RECONNECT_BASE_MS = 1000;
+      const RECONNECT_MAX_MS = 30000;
+      const CHART_MAX_POINTS = 120;
+
+      // -----------------------------------------------------------------------
+      // DOM References
+      // -----------------------------------------------------------------------
+      const el = {
+        connDot: document.getElementById("connDot"),
+        connStatusText: document.getElementById("connStatusText"),
+        testDot: document.getElementById("testDot"),
+        testStatusText: document.getElementById("testStatusText"),
+        wsUrl: document.getElementById("wsUrl"),
+        transportLabel: document.getElementById("transportLabel"),
+        sendRate: document.getElementById("sendRate"),
+        connectBtn: document.getElementById("connectBtn"),
+        disconnectBtn: document.getElementById("disconnectBtn"),
+        startBtn: document.getElementById("startBtn"),
+        stopBtn: document.getElementById("stopBtn"),
+        exportBtn: document.getElementById("exportBtn"),
+        mDuration: document.getElementById("mDuration"),
+        mSent: document.getElementById("mSent"),
+        mReceived: document.getElementById("mReceived"),
+        mPending: document.getElementById("mPending"),
+        mTimedOut: document.getElementById("mTimedOut"),
+        mAbandoned: document.getElementById("mAbandoned"),
+        mCurrent: document.getElementById("mCurrent"),
+        mMedian: document.getElementById("mMedian"),
+        mP95: document.getElementById("mP95"),
+        mMin: document.getElementById("mMin"),
+        mMax: document.getElementById("mMax"),
+        rttChart: document.getElementById("rttChart"),
+        dVisibility: document.getElementById("dVisibility"),
+        dReconnects: document.getElementById("dReconnects"),
+        dBuffered: document.getElementById("dBuffered"),
+        dReason: document.getElementById("dReason")
+      };
+
+      // -----------------------------------------------------------------------
+      // Connection State
+      // -----------------------------------------------------------------------
+      let ws = null;
+      let connState = "Disconnected"; // Disconnected | Connecting | Connected | Reconnecting | Error
+      let manualDisconnect = false;
+      let reconnectAttempts = 0;
+      let reconnectTimerId = null;
+      let lastReason = "None";
+
+      // -----------------------------------------------------------------------
+      // Test State
+      // -----------------------------------------------------------------------
+      let testRunning = false;
+      let testStateLabel = "Idle"; // Idle | Running | Stopped | Stopped (Disconnected)
+      let testStartPerf = 0;
+      let testEndPerf = 0;
+      let sendTimerId = null;
+      let uiTickTimerId = null;
+      let percentileTimerId = null;
+      let chartRafPending = false;
+
+      let nextSeq = 1;
+      let sentCount = 0;
+      let receivedCount = 0;
+      let timedOutCount = 0;
+      let abandonedCount = 0;
+
+      // Map<seq, { sendTime: number, timeoutId: number }>
+      const pending = new Map();
+
+      // Array<{ seq: number, sendTime: number, rtt: number }>
+      let samples = [];
+      let currentRtt = null;
+      let minRtt = null;
+      let maxRtt = null;
+      let medianRtt = null;
+      let p95Rtt = null;
+
+      // -----------------------------------------------------------------------
+      // Status & UI Helpers
+      // -----------------------------------------------------------------------
+      function setConnState(state, reason) {
+        connState = state;
+        if (typeof reason === "string" && reason.length > 0) {
+          lastReason = reason;
+        }
+
+        el.connStatusText.textContent = connState;
+        el.dReason.textContent = lastReason;
+        el.dReconnects.textContent = String(reconnectAttempts);
+
+        let dotClass = "idle";
+        if (connState === "Connected") dotClass = "ok";
+        else if (connState === "Connecting" || connState === "Reconnecting") dotClass = "warn";
+        else if (connState === "Error") dotClass = "err";
+        el.connDot.className = "dot " + dotClass;
+
+        updateButtons();
+      }
+
+      function setTestState(running, label) {
+        testRunning = running;
+        testStateLabel = label;
+        el.testStatusText.textContent = label;
+        el.testDot.className = "dot " + (running ? "ok" : "idle");
+        updateButtons();
+      }
+
+      function updateButtons() {
+        const isOpen = ws !== null && ws.readyState === WebSocket.OPEN;
+        const isConnecting = connState === "Connecting" || connState === "Reconnecting";
+
+        el.connectBtn.disabled = isOpen || isConnecting;
+        el.disconnectBtn.disabled = !isOpen && !isConnecting;
+        el.wsUrl.disabled = isOpen || isConnecting;
+
+        el.startBtn.disabled = !isOpen || testRunning;
+        el.stopBtn.disabled = !testRunning;
+        el.sendRate.disabled = testRunning;
+        el.transportLabel.disabled = testRunning;
+
+        el.exportBtn.disabled = testRunning || (sentCount === 0 && samples.length === 0);
+      }
+
+      function formatMs(val) {
+        return val === null ? "-" : val.toFixed(2) + " ms";
+      }
+
+      function getElapsedMs() {
+        if (testStartPerf === 0) return 0;
+        const end = testRunning ? performance.now() : testEndPerf;
+        return Math.max(0, end - testStartPerf);
+      }
+
+      function updateMetricsDisplay() {
+        const elapsedSec = getElapsedMs() / 1000;
+        el.mDuration.textContent = elapsedSec.toFixed(1) + " s";
+        el.mSent.textContent = String(sentCount);
+        el.mReceived.textContent = String(receivedCount);
+        el.mPending.textContent = String(pending.size);
+        el.mTimedOut.textContent = String(timedOutCount);
+        el.mAbandoned.textContent = String(abandonedCount);
+
+        el.mCurrent.textContent = formatMs(currentRtt);
+        el.mMedian.textContent = formatMs(medianRtt);
+        el.mP95.textContent = formatMs(p95Rtt);
+        el.mMin.textContent = formatMs(minRtt);
+        el.mMax.textContent = formatMs(maxRtt);
+
+        if (ws && typeof ws.bufferedAmount === "number") {
+          el.dBuffered.textContent = ws.bufferedAmount + " B";
+        } else {
+          el.dBuffered.textContent = "N/A";
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // Statistics
+      // -----------------------------------------------------------------------
+      function recomputePercentiles() {
+        const n = samples.length;
+        if (n === 0) {
+          medianRtt = null;
+          p95Rtt = null;
+          return;
+        }
+
+        // Always sort a copy of the sample RTTs ascending.
+        const sorted = samples.map(function (s) { return s.rtt; }).sort(function (a, b) {
+          return a - b;
+        });
+
+        // Median: middle value for odd n, arithmetic mean of two middle values for even n.
+        const mid = Math.floor(n / 2);
+        medianRtt = (n % 2 === 1) ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+
+        // p95 (nearest-rank method):
+        // Index = ceil(0.95 * N) - 1, clamped to [0, N - 1].
+        // This guarantees p95 is an observed sample at or above 95% of all samples.
+        const p95Idx = Math.min(n - 1, Math.max(0, Math.ceil(0.95 * n) - 1));
+        p95Rtt = sorted[p95Idx];
+      }
+
+      // -----------------------------------------------------------------------
+      // Pending Map Cleanup
+      // -----------------------------------------------------------------------
+      function clearPending(countAsAbandoned) {
+        if (countAsAbandoned && pending.size > 0) {
+          abandonedCount += pending.size;
+        }
+        for (const entry of pending.values()) {
+          clearTimeout(entry.timeoutId);
+        }
+        pending.clear();
+      }
+
+      // -----------------------------------------------------------------------
+      // WebSocket Connection Management
+      // -----------------------------------------------------------------------
+      function clearReconnectTimer() {
+        if (reconnectTimerId !== null) {
+          clearTimeout(reconnectTimerId);
+          reconnectTimerId = null;
+        }
+      }
+
+      function connect() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+
+        clearReconnectTimer();
+        manualDisconnect = false;
+
+        const url = el.wsUrl.value.trim();
+        if (!url) {
+          setConnState("Error", "Empty WebSocket URL");
+          return;
+        }
+
+        setConnState(reconnectAttempts > 0 ? "Reconnecting" : "Connecting", "Connecting to " + url);
+
+        let socket;
+        try {
+          socket = new WebSocket(url);
+        } catch (err) {
+          setConnState("Error", "Invalid URL: " + (err && err.message ? err.message : String(err)));
+          return;
+        }
+
+        ws = socket;
+
+        socket.onopen = function () {
+          if (ws !== socket) return;
+          reconnectAttempts = 0;
+          setConnState("Connected", "Connected");
+          updateMetricsDisplay();
+        };
+
+        socket.onmessage = function (event) {
+          if (ws !== socket) return;
+          handleIncomingMessage(event.data);
+        };
+
+        socket.onerror = function () {
+          if (ws !== socket) return;
+          setConnState("Error", "WebSocket error");
+        };
+
+        socket.onclose = function (event) {
+          if (ws !== socket) return;
+          ws = null;
+
+          // Stop active test immediately when connection is lost; count any
+          // outstanding pending messages as abandoned once and preserve results.
+          if (testRunning) {
+            stopTestInternal("Stopped (Disconnected)");
+          } else {
+            clearPending(false);
+            updateMetricsDisplay();
+          }
+
+          const closeDetail = event.reason
+            ? "Closed (" + event.code + ": " + event.reason + ")"
+            : "Closed (code " + event.code + ")";
+
+          if (manualDisconnect) {
+            setConnState("Disconnected", "User disconnected");
+            return;
+          }
+
+          // Schedule exponential backoff reconnect; never auto-restart test.
+          reconnectAttempts += 1;
+          const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts - 1));
+          setConnState("Reconnecting", closeDetail + "; retry in " + (delay / 1000).toFixed(0) + "s");
+
+          reconnectTimerId = setTimeout(function () {
+            reconnectTimerId = null;
+            if (!manualDisconnect) {
+              connect();
+            }
+          }, delay);
+        };
+      }
+
+      function disconnect() {
+        manualDisconnect = true;
+        clearReconnectTimer();
+        reconnectAttempts = 0;
+
+        if (testRunning) {
+          stopTestInternal("Stopped (Disconnected)");
+        } else {
+          clearPending(false);
+        }
+
+        if (ws) {
+          const closingSocket = ws;
+          ws = null;
+          try {
+            closingSocket.close(1000, "User disconnected");
+          } catch (_) {
+            // Ignore close errors on already-closed socket.
+          }
+        }
+
+        setConnState("Disconnected", "User disconnected");
+        updateMetricsDisplay();
+      }
+
+      // -----------------------------------------------------------------------
+      // Measurement Protocol (Send / Receive / Timeout)
+      // -----------------------------------------------------------------------
+      function sendOneMessage() {
+        if (!testRunning) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          stopTestInternal("Stopped (Disconnected)");
+          return;
+        }
+
+        // Guard against unbounded pending map growth.
+        if (pending.size >= MAX_PENDING_MESSAGES) {
+          return;
+        }
+
+        const seq = nextSeq++;
+        const sendTime = performance.now();
+        const payload = JSON.stringify({ seq: seq, t: sendTime });
+
+        const timeoutId = setTimeout(function () {
+          if (!pending.has(seq)) return;
+          pending.delete(seq);
+          if (testRunning) {
+            timedOutCount += 1;
+            updateMetricsDisplay();
+          }
+        }, MESSAGE_TIMEOUT_MS);
+
+        pending.set(seq, { sendTime: sendTime, timeoutId: timeoutId });
+
+        try {
+          ws.send(payload);
+          sentCount += 1;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          pending.delete(seq);
+          stopTestInternal("Stopped (Send Error)");
+          setConnState("Error", "Send failed: " + (err && err.message ? err.message : String(err)));
+        }
+      }
+
+      function handleIncomingMessage(rawData) {
+        if (typeof rawData !== "string") return;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(rawData);
+        } catch (_) {
+          return; // Ignore non-JSON or malformed messages.
+        }
+
+        if (!parsed || typeof parsed.seq !== "number") return;
+
+        const entry = pending.get(parsed.seq);
+        if (!entry) {
+          // Duplicate, unknown, or already timed-out sequence number: ignore.
+          return;
+        }
+
+        const rtt = Math.max(0, performance.now() - entry.sendTime);
+        clearTimeout(entry.timeoutId);
+        pending.delete(parsed.seq);
+
+        receivedCount += 1;
+        currentRtt = rtt;
+        if (minRtt === null || rtt < minRtt) minRtt = rtt;
+        if (maxRtt === null || rtt > maxRtt) maxRtt = rtt;
+
+        samples.push({ seq: parsed.seq, sendTime: entry.sendTime, rtt: rtt });
+        updateMetricsDisplay();
+        scheduleChartDraw();
+      }
+
+      // -----------------------------------------------------------------------
+      // Test Lifecycle
+      // -----------------------------------------------------------------------
+      function clearTestTimers() {
+        if (sendTimerId !== null) {
+          clearInterval(sendTimerId);
+          sendTimerId = null;
+        }
+        if (uiTickTimerId !== null) {
+          clearInterval(uiTickTimerId);
+          uiTickTimerId = null;
+        }
+        if (percentileTimerId !== null) {
+          clearInterval(percentileTimerId);
+          percentileTimerId = null;
+        }
+      }
+
+      function startTest() {
+        if (testRunning) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const rateVal = Number(el.sendRate.value);
+        const rate = Number.isFinite(rateVal) ? Math.min(200, Math.max(1, Math.round(rateVal))) : 20;
+        el.sendRate.value = String(rate);
+
+        // Reset statistics for a fresh measurement run.
+        // Keep nextSeq monotonic across the browser session so delayed responses
+        // from earlier runs cannot match entries in the new pending map.
+        clearTestTimers();
+        clearPending(false);
+
+        sentCount = 0;
+        receivedCount = 0;
+        timedOutCount = 0;
+        abandonedCount = 0;
+        samples = [];
+        currentRtt = null;
+        minRtt = null;
+        maxRtt = null;
+        medianRtt = null;
+        p95Rtt = null;
+
+        testStartPerf = performance.now();
+        testEndPerf = testStartPerf;
+        setTestState(true, "Running");
+
+        const intervalMs = Math.max(5, Math.round(1000 / rate));
+        sendOneMessage();
+        sendTimerId = setInterval(sendOneMessage, intervalMs);
+        uiTickTimerId = setInterval(updateMetricsDisplay, 200);
+        percentileTimerId = setInterval(function () {
+          recomputePercentiles();
+          updateMetricsDisplay();
+        }, 1000);
+
+        updateMetricsDisplay();
+        scheduleChartDraw();
+      }
+
+      function stopTestInternal(reasonLabel) {
+        if (!testRunning) return;
+        testEndPerf = performance.now();
+        clearTestTimers();
+        clearPending(true);
+        recomputePercentiles();
+        setTestState(false, reasonLabel || "Stopped");
+        updateMetricsDisplay();
+        scheduleChartDraw();
+      }
+
+      // -----------------------------------------------------------------------
+      // Lightweight Canvas Chart
+      // -----------------------------------------------------------------------
+      function scheduleChartDraw() {
+        if (chartRafPending) return;
+        chartRafPending = true;
+        requestAnimationFrame(function () {
+          chartRafPending = false;
+          drawChart();
+        });
+      }
+
+      function drawChart() {
+        const canvas = el.rttChart;
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const targetW = Math.floor(rect.width * dpr);
+        const targetH = Math.floor(rect.height * dpr);
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const w = rect.width;
+        const h = rect.height;
+        const padL = 48;
+        const padR = 14;
+        const padT = 14;
+        const padB = 24;
+        const plotW = Math.max(1, w - padL - padR);
+        const plotH = Math.max(1, h - padT - padB);
+
+        ctx.clearRect(0, 0, w, h);
+
+        const recent = samples.slice(-CHART_MAX_POINTS);
+        if (recent.length === 0) {
+          ctx.fillStyle = "#64748b";
+          ctx.font = "12px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("No RTT samples yet", w / 2, h / 2);
+          return;
+        }
+
+        let peak = 10;
+        for (let i = 0; i < recent.length; i++) {
+          if (recent[i].rtt > peak) peak = recent[i].rtt;
+        }
+        const yMax = Math.ceil(peak * 1.15);
+
+        // Horizontal grid lines (0, mid, max)
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 1;
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "11px ui-monospace, monospace";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+
+        const ticks = [0, yMax / 2, yMax];
+        for (let t = 0; t < ticks.length; t++) {
+          const val = ticks[t];
+          const y = padT + plotH - (val / yMax) * plotH;
+          ctx.beginPath();
+          ctx.moveTo(padL, y);
+          ctx.lineTo(w - padR, y);
+          ctx.stroke();
+          ctx.fillText(val.toFixed(0), padL - 6, y);
+        }
+
+        // RTT polyline
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        const denom = Math.max(1, recent.length - 1);
+        for (let i = 0; i < recent.length; i++) {
+          const x = padL + (i / denom) * plotW;
+          const y = padT + plotH - (recent[i].rtt / yMax) * plotH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // X-axis caption
+        ctx.fillStyle = "#94a3b8";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("Last " + recent.length + " samples", padL, h - 4);
+      }
+
+      // -----------------------------------------------------------------------
+      // CSV Export
+      // -----------------------------------------------------------------------
+      function csvEscape(value) {
+        const s = String(value);
+        if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }
+
+      function exportCsv() {
+        const transport = el.transportLabel.value;
+        const durationSec = (getElapsedMs() / 1000).toFixed(3);
+        const fmt = function (v) { return v === null ? "" : v.toFixed(3); };
+
+        const lines = [
+          "Summary",
+          "transport,duration_s,sent,received,timed_out,abandoned,median_ms,p95_ms,min_ms,max_ms",
+          [
+            csvEscape(transport),
+            durationSec,
+            sentCount,
+            receivedCount,
+            timedOutCount,
+            abandonedCount,
+            fmt(medianRtt),
+            fmt(p95Rtt),
+            fmt(minRtt),
+            fmt(maxRtt)
+          ].join(","),
+          "",
+          "Samples",
+          "seq,send_timestamp_ms,rtt_ms"
+        ];
+
+        for (let i = 0; i < samples.length; i++) {
+          const s = samples[i];
+          lines.push(s.seq + "," + s.sendTime.toFixed(3) + "," + s.rtt.toFixed(3));
+        }
+
+        const blob = new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const slug = transport.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        a.href = url;
+        a.download = "decklink-benchmark-" + slug + "-" + stamp + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // -----------------------------------------------------------------------
+      // Event Bindings & Diagnostics
+      // -----------------------------------------------------------------------
+      el.connectBtn.addEventListener("click", connect);
+      el.disconnectBtn.addEventListener("click", disconnect);
+      el.startBtn.addEventListener("click", startTest);
+      el.stopBtn.addEventListener("click", function () {
+        stopTestInternal("Stopped");
+      });
+      el.exportBtn.addEventListener("click", exportCsv);
+
+      document.addEventListener("visibilitychange", function () {
+        el.dVisibility.textContent = document.visibilityState;
+      });
+      el.dVisibility.textContent = document.visibilityState;
+
+      window.addEventListener("resize", scheduleChartDraw);
+
+      setConnState("Disconnected", "None");
+      setTestState(false, "Idle");
+      updateMetricsDisplay();
+      scheduleChartDraw();
+    })();
+  </script>
+</body>
+</html>
